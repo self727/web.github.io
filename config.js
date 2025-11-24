@@ -82,66 +82,106 @@ function toggleEditMode() {
     renderConfig();
 }
 
+function statusMessage(msg, isError = false) {
+    const status = document.getElementById('status');
+    status.textContent = msg;
+    if (isError) {
+        status.classList.add('error');
+    } else {
+        status.classList.remove('error');
+    }
+}
+
 function renderConfig() {
     const content = document.getElementById('content');
     content.innerHTML = '';
+
     config.sections.forEach((section, secIndex) => {
         const sec = document.createElement('section');
-        sec.setAttribute('draggable', 'true');
-        sec.setAttribute('data-index', secIndex);
-        sec.addEventListener('dragstart', handleDragStart);
-        sec.addEventListener('dragover', handleDragOver);
-        sec.addEventListener('dragleave', handleDragLeave);
-        sec.addEventListener('drop', handleDrop);
 
+        // 分组标题行
         const headerRow = document.createElement('div');
         headerRow.className = 'item-row';
 
         const titleSpan = document.createElement('span');
         titleSpan.textContent = section.title;
         titleSpan.className = 'editable';
-        if (isEditing) titleSpan.onclick = () => switchToSectionInput(titleSpan, secIndex);
-        headerRow.appendChild(titleSpan);
-        headerRow.appendChild(document.createElement('div'));
+        if (isEditing) {
+            titleSpan.onclick = () => switchToSectionInput(titleSpan, secIndex);
+        }
+
+        const actions = document.createElement('div');
+        actions.className = 'actions';
 
         const delGroupBtn = document.createElement('button');
+        delGroupBtn.className = 'icon-btn';
         delGroupBtn.textContent = isEditing ? '❌' : '';
         delGroupBtn.onclick = () => removeSection(secIndex);
-        headerRow.appendChild(delGroupBtn);
+        actions.appendChild(delGroupBtn);
+
+        headerRow.appendChild(titleSpan);
+        headerRow.appendChild(actions);
         sec.appendChild(headerRow);
 
+        // 每个链接项
         section.items.forEach((item, itemIndex) => {
             const row = document.createElement('div');
             row.className = 'item-row';
 
+            const textGroup = document.createElement('div');
+            textGroup.className = 'text-group';
+
             const labelSpan = document.createElement('span');
             labelSpan.textContent = item.label;
             labelSpan.className = 'editable';
-            if (isEditing) labelSpan.onclick = () => switchToLabelInput(labelSpan, secIndex, itemIndex, () => {
-                const urlSpan = row.querySelector('span.editable:nth-child(2)');
-                if (urlSpan) switchToUrlInput(urlSpan, secIndex, itemIndex);
-            });
+            if (isEditing) {
+                labelSpan.onclick = () => switchToLabelInput(labelSpan, secIndex, itemIndex, () => {
+                    const urlSpan = row.querySelector('.text-group span:nth-child(2)');
+                    if (urlSpan) switchToUrlInput(urlSpan, secIndex, itemIndex);
+                });
+            }
 
             const urlSpan = document.createElement('span');
             urlSpan.textContent = item.url;
-            urlSpan.className = 'editable';
+            urlSpan.className = 'editable url';
+            urlSpan.setAttribute('title', item.url); // ✅ 悬停显示完整链接
             if (isEditing) {
                 urlSpan.onclick = () => switchToUrlInput(urlSpan, secIndex, itemIndex);
             } else {
                 urlSpan.onclick = () => window.open(item.url, '_blank');
             }
 
-            row.appendChild(labelSpan);
-            row.appendChild(urlSpan);
+            textGroup.appendChild(labelSpan);
+            textGroup.appendChild(urlSpan);
+
+            const actions = document.createElement('div');
+            actions.className = 'actions';
+
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'icon-btn';
+            copyBtn.textContent = '📋';
+            copyBtn.onclick = () => {
+                navigator.clipboard.writeText(item.url).then(() => {
+                    statusMessage(`已复制: ${item.url}`);
+                }).catch(err => {
+                    statusMessage('❌ 复制失败: ' + err.message, true);
+                });
+            };
 
             const delBtn = document.createElement('button');
+            delBtn.className = 'icon-btn';
             delBtn.textContent = isEditing ? '❌' : '';
             delBtn.onclick = () => removeItem(secIndex, itemIndex);
-            row.appendChild(delBtn);
 
+            actions.appendChild(copyBtn);
+            actions.appendChild(delBtn);
+
+            row.appendChild(textGroup);
+            row.appendChild(actions);
             sec.appendChild(row);
         });
 
+        // 编辑模式下添加链接按钮
         if (isEditing) {
             const addBtn = document.createElement('button');
             addBtn.textContent = '➕ 添加链接';
@@ -152,6 +192,21 @@ function renderConfig() {
         content.appendChild(sec);
     });
 }
+
+
+
+
+// 辅助函数：显示状态提示
+function statusMessage(msg, isError = false) {
+    const status = document.getElementById('status');
+    status.textContent = msg;
+    if (isError) {
+        status.classList.add('error');
+    } else {
+        status.classList.remove('error');
+    }
+}
+
 
 function handleDragStart(e) {
     draggedIndex = parseInt(e.currentTarget.getAttribute('data-index'));
